@@ -1,8 +1,9 @@
 FROM lnogueir/approach-prototools:latest AS protobuilder
 
 RUN git clone https://github.com/approach-me/service-definitions && \
-    mkdir -p protos && \
-    find service-definitions -name *.proto | xargs protoc --go_out=protos --go-grpc_out=protos
+    cd service-definitions && git checkout main && \
+    mkdir -p ../protos && \
+    find . -name *.proto | xargs protoc --go_out=../protos --go-grpc_out=../protos
 
 FROM golang:1.18.3 AS builder
 
