@@ -1,0 +1,6 @@
+Dockerfile
+.dockerignore
+.git*
+protos
+*.exe
+docker-compose.yaml

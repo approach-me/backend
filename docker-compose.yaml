@@ -1,0 +1,17 @@
+version: '3.4'
+services:
+  go-server:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+      target: container-env
+    ports:
+      - "9090:9090"
+  envoy:
+    build:
+      context: ./
+      dockerfile: envoy/Dockerfile
+    ports:
+      - "8080:8080"
+    links:
+      - go-server
