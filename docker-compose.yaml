@@ -1,10 +1,19 @@
 version: '3.4'
 services:
+  neo4j:
+    build:
+      context: ./
+      dockerfile: neo4j/Dockerfile
+    ports:
+      - "7473:7473"
+      - "7474:7474"
   go-server:
     build:
       context: ./
       dockerfile: ./Dockerfile
       target: container-env
+    depends_on:
+      - neo4j
     ports:
       - "9090:9090"
   envoy:
