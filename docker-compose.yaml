@@ -7,12 +7,17 @@ services:
     ports:
       - "7473:7473"
       - "7474:7474"
+      - "7687:7687"
   go-server:
     build:
       context: ./
       dockerfile: ./Dockerfile
       target: container-env
+    environment:
+      - NEO4J_HOST=neo4j
     depends_on:
+      - neo4j
+    links:
       - neo4j
     ports:
       - "9090:9090"
