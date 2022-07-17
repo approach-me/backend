@@ -101,16 +101,15 @@ func (s *Service) Subscribe(request *protos.SubscribeRequest, stream protos.Lasn
 
 func (s *Service) notifyUsersWith(userSummaries []*protos.UserSummary) {
 	log.Println("Going to notify subscribed users")
-	for _, userID := range userSummaries {
-		v, ok := s.subscribers.Load(userID)
+	for _, userSummary := range userSummaries {
+		v, ok := s.subscribers.Load(userSummary.UserId)
 		if !ok {
 			// That user does not have an active subscription (not active in the app).
 			// TODO: send phone notification here.
-			log.Printf("UserID [%v] is not subscribed. Ignore...", userID)
 			continue
 		}
 
-		log.Printf("Notifying UserID: %v", userID)
+		log.Printf("Notifying User [%v]", userSummary.UserId)
 		err := v.(subscription).stream.Send(&protos.SubscribeResponse{UserSummaries: userSummaries})
 		if err != nil {
 			log.Printf("Failed to send notification to user stream. Reason: %v", err)
