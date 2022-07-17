@@ -3,9 +3,9 @@ package managers
 import (
 	"errors"
 	"fmt"
-	"github.com/approach.me/backend/protos"
 	"os"
 
+	"github.com/approach.me/backend/protos"
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
 )
 
