@@ -3,6 +3,7 @@ package managers
 import (
 	"errors"
 	"fmt"
+	"github.com/approach.me/backend/protos"
 	"os"
 
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
@@ -28,10 +29,26 @@ func (m *Neo4jManager) Close() {
 	m.driver.Close()
 }
 
-func (m *Neo4jManager) AddEdgeBetween(userID int64, nearbyUserID int64) error {
+func (m *Neo4jManager) CreateOrUpdateNode(userSummary *protos.UserSummary) error {
+	_, err := m.executeQuery(fmt.Sprintf(`
+			MERGE ({
+				userid: "%v",
+				deviceid: "%v",
+				name: "%v",
+				birthdate: %v,
+				thumbnail: "%v"
+			})
+		`, userSummary.UserId, userSummary.DeviceId, userSummary.Name, userSummary.Birthdate, userSummary.ThumbnailUri))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Neo4jManager) AddEdgeBetween(userID, nearbyUserID string) error {
 	_, err := m.executeQuery(fmt.Sprintf(`
 			MATCH (a), (b)
-			WHERE a.userid=%v AND b.userid=%v
+			WHERE a.userid="%v" AND b.deviceid="%v"
 			MERGE (a)-[r:%v]->(b)
 		`, userID, nearbyUserID, relationshipIdentifier))
 	if err != nil {
@@ -40,30 +57,37 @@ func (m *Neo4jManager) AddEdgeBetween(userID int64, nearbyUserID int64) error {
 	return nil
 }
 
-func (m *Neo4jManager) RetrieveUsersConnectedTo(userID int64) ([]int64, error) {
+func (m *Neo4jManager) RetrieveUsersConnectedTo(userID string) ([]*protos.UserSummary, error) {
 	records, err := m.executeQuery(fmt.Sprintf(`
-			MATCH (a)
-			WHERE a.userid=%v
-			MATCH (a)-[r:%v*1..]-(b)
-			RETURN DISTINCT b.userid as userid
-		`, userID, relationshipIdentifier))
+			MATCH p = ({userid: "%v"})-[*]-()
+			UNWIND NODES(p) as userNode
+			RETURN DISTINCT userNode{.*}
+			ORDER BY userNode.userid
+		`, userID))
 	if err != nil {
 		return nil, err
 	}
 
-	return mapRecordsToUserIDs(records)
+	return mapRecordsToUserSummaries(records)
 }
 
-func mapRecordsToUserIDs(records []*neo4j.Record) ([]int64, error) {
-	userIDs := make([]int64, len(records))
+func mapRecordsToUserSummaries(records []*neo4j.Record) ([]*protos.UserSummary, error) {
+	userSummaries := make([]*protos.UserSummary, len(records))
 	for i, record := range records {
-		userid, ok := record.Get("userid")
+		v, ok := record.Get("userNode")
 		if !ok {
-			return nil, errors.New("expected key userid to be found in record")
+			return nil, errors.New("expected key userNode to be found in record")
 		}
-		userIDs[i] = userid.(int64)
+		userNode := v.(map[string]interface{})
+		userSummaries[i] = &protos.UserSummary{
+			UserId:       userNode["userid"].(string),
+			DeviceId:     userNode["deviceid"].(string),
+			Name:         userNode["name"].(string),
+			Birthdate:    userNode["birthdate"].(int64),
+			ThumbnailUri: userNode["thumbnail"].(string),
+		}
 	}
-	return userIDs, nil
+	return userSummaries, nil
 }
 
 func (m *Neo4jManager) executeQuery(query string) ([]*neo4j.Record, error) {
