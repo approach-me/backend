@@ -62,11 +62,17 @@ func (s *Service) Fetch(ctx context.Context, request *protos.FetchRequest) (*pro
 }
 
 func (s *Service) Disconnect(ctx context.Context, request *protos.DisconnectRequest) (*protos.DisconnectResponse, error) {
-	// TODO: write query to remove all edges from node identified by request.UserId and link dangling components.
+	err := s.neo4jManager.UnlinkEdgesAndMergeDanglingComponentsFrom(request.UserId)
+	if err != nil {
+		return nil, err
+	}
+
 	v, ok := s.subscribers.Load(request.UserId)
 	if !ok {
+		// User is already not subscribed so just return.
 		return &protos.DisconnectResponse{}, nil
 	}
+
 	select {
 	case v.(subscription).finished <- true:
 		log.Printf("Unsubscribed client: %v", request.UserId)

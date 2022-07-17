@@ -9,8 +9,6 @@ import (
 	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
 )
 
-const relationshipIdentifier = "CONNECTED"
-
 var neo4jHost = os.Getenv("NEO4J_HOST")
 
 type Neo4jManager struct {
@@ -49,8 +47,22 @@ func (m *Neo4jManager) AddEdgeBetween(userID, nearbyUserID string) error {
 	_, err := m.executeQuery(fmt.Sprintf(`
 			MATCH (a), (b)
 			WHERE a.userid="%v" AND b.deviceid="%v"
-			MERGE (a)-[r:%v]->(b)
-		`, userID, nearbyUserID, relationshipIdentifier))
+			MERGE (a)-[r:CONNECTED]->(b)
+		`, userID, nearbyUserID))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Neo4jManager) UnlinkEdgesAndMergeDanglingComponentsFrom(userID string) error {
+	_, err := m.executeQuery(fmt.Sprintf(`
+		MATCH (n {userid:"%v"})
+		OPTIONAL MATCH (c1)-[r1:CONNECTED]-(n)-[r2:CONNECTED]-(c2)
+		DELETE r1, r2
+		WITH c1, c2 WHERE c2 IS NOT NULL AND c1 IS NOT NULL
+		MERGE (c1)-[:CONNECTED]-(c2)
+		`, userID))
 	if err != nil {
 		return err
 	}
