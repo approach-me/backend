@@ -91,18 +91,16 @@ func (s *Service) Subscribe(request *protos.SubscribeRequest, stream protos.Lasn
 	s.subscribers.Store(request.UserId, subscription{stream: stream, finished: finished})
 
 	ctx := stream.Context()
-	// Keep this scope alive because once this scope exits - the stream is closed
-	for {
-		select {
-		case <-finished:
-			log.Printf("UserID [%v] has disconnected", request.UserId)
-			return nil
-		case <-ctx.Done():
-			log.Printf("UserID [%v] connection has closed", request.UserId)
-			s.subscribers.Delete(request.UserId)
-			return nil
-		}
+
+	// This blocks and keeps the stream alive until it's finished or closed.
+	select {
+	case <-finished:
+		log.Printf("UserID [%v] has disconnected", request.UserId)
+	case <-ctx.Done():
+		log.Printf("UserID [%v] connection has closed", request.UserId)
+		s.subscribers.Delete(request.UserId)
 	}
+	return nil
 }
 
 func (s *Service) notifyUsersWith(userSummaries []*protos.UserSummary) {
